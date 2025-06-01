@@ -3,65 +3,291 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Selfie Photobooth</title>
+  <title>Photobooth</title>
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
   <style>
-    body { font-family: 'Segoe UI', Arial, sans-serif; background: #181818; color: #f5f5f5; text-align: center; }
-    #photobooth { margin: 40px auto; background: #232323; padding: 24px; border-radius: 18px; box-shadow: 0 4px 32px rgba(0,0,0,0.4); width: 380px; }
-    #video { border-radius: 14px; border: 4px solid #444; background: #111; }
-    .polaroid {
-      background: #222;
-      padding: 12px 12px 36px 12px;
-      border-radius: 12px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-      margin: 12px;
-      display: inline-block;
-      position: relative;
-      width: 110px;
-      height: 140px;
-      border: 2px solid #444;
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: #fce4ec;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      padding: 20px;
+      box-sizing: border-box;
     }
-    .polaroid img { width: 110px; height: 110px; object-fit: cover; border-radius: 8px; filter: grayscale(0.2) contrast(1.1) drop-shadow(0 2px 8px #0008); }
-    .polaroid .caption { position: absolute; bottom: 10px; left: 0; width: 100%; font-size: 13px; color: #bbb; }
-    #final-layout { margin-top: 24px; display: flex; justify-content: center; gap: 16px; }
-    #download-btn { margin-top: 18px; padding: 12px 24px; font-size: 17px; border: none; border-radius: 10px; background: #111; color: #fff; cursor: pointer; box-shadow: 0 2px 8px #0006; transition: background 0.2s; }
-    #download-btn:disabled { background: #444; }
-    #download-btn:hover:not(:disabled) { background: #e60023; color: #fff; }
-    #countdown { font-size: 26px; color: #e60023; margin: 12px 0; font-weight: bold; }
-    h2 { font-family: 'Segoe UI', Arial, sans-serif; font-size: 2.1em; color: #fff; letter-spacing: 2px; margin-bottom: 18px; }
-    #start-btn { background: #e60023; color: #fff; border: none; border-radius: 8px; padding: 12px 28px; font-size: 18px; margin-top: 10px; cursor: pointer; box-shadow: 0 2px 8px #0006; transition: background 0.2s; }
-    #start-btn:disabled { background: #444; }
-    #start-btn:hover:not(:disabled) { background: #b8001c; }
+
+    .main-container {
+      width: 100%;
+      max-width: 800px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .preview-strip {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      min-height: 120px;
+      width: 100%;
+      padding: 10px;
+    }
+
+    .preview-polaroid {
+      background: white;
+      padding: 8px 8px 24px;
+      box-shadow: 0 2px 8px rgba(230, 0, 122, 0.2);
+      border-radius: 4px;
+      width: 100px;
+      opacity: 0;
+      transform: translateY(20px);
+      animation: dropIn 0.5s ease forwards;
+    }
+
+    .preview-polaroid img {
+      width: 100%;
+      height: 84px;
+      object-fit: cover;
+      border-radius: 2px;
+    }
+
+    .camera-container {
+      width: 100%;
+      max-width: 640px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #video {
+      width: 100%;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(230, 0, 122, 0.2);
+    }
+
+    #start-btn, #download-btn, .layout-btn {
+      background: #e6007a;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 25px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(230, 0, 122, 0.2);
+    }
+
+    #start-btn:hover, #download-btn:hover, .layout-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(230, 0, 122, 0.3);
+    }
+
+    #start-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    #countdown {
+      font-size: 24px;
+      color: #e6007a;
+      margin: 20px 0;
+      min-height: 36px;
+      text-align: center;
+    }
+
+    .layout-preview {
+      display: none;
+      width: 100%;
+      max-width: 800px;
+      margin: 20px 0;
+      padding: 30px;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 8px 24px rgba(230, 0, 122, 0.15);
+    }
+
+    .layout-controls {
+      display: none;
+      margin: 20px 0;
+      gap: 10px;
+    }
+
+    .layout-btn {
+      background: #ff69b4;
+      opacity: 0.7;
+    }
+
+    .layout-btn.active {
+      background: #e6007a;
+      opacity: 1;
+    }
+
+    .polaroid-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      justify-items: center;
+    }
+
+    .polaroid-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 30px;
+    }
+
+    .polaroid {
+      background: white;
+      padding: 15px 15px 60px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      border-radius: 4px;
+      position: relative;
+      transition: transform 0.3s ease;
+      animation: fadeIn 0.5s ease forwards;
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    .polaroid:hover {
+      transform: translateY(-5px) rotate(2deg);
+    }
+
+    .polaroid img {
+      width: 100%;
+      max-width: 300px;
+      height: auto;
+      border-radius: 2px;
+    }
+
+    .polaroid .caption {
+      position: absolute;
+      bottom: 20px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      color: #666;
+      font-size: 14px;
+    }
+
+    #download-btn {
+      display: none;
+      margin-top: 20px;
+    }
+
+    footer {
+      margin-top: auto;
+      color: #e6007a;
+      font-size: 14px;
+      padding: 20px;
+    }
+
+    @keyframes fadeIn {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes dropIn {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+
+      .preview-strip {
+        flex-wrap: wrap;
+      }
+
+      .preview-polaroid {
+        width: 80px;
+      }
+
+      #video {
+        width: 100%;
+        height: auto;
+      }
+
+      .polaroid {
+        padding: 10px 10px 50px;
+      }
+
+      .polaroid img {
+        max-width: 100%;
+      }
+    }
   </style>
 </head>
 <body>
-  <div id="photobooth">
-    <h2>Selfie Photobooth</h2>
-    <video id="video" width="320" height="240" autoplay></video>
-    <div id="countdown"></div>
-    <button id="start-btn">Start Photobooth</button>
-    <div id="final-layout" style="display:none;"></div>
-    <button id="download-btn" style="display:none;">Download Photobooth Image</button>
+  <div class="main-container">
+    <div class="preview-strip"></div>
+    <div class="camera-container">
+      <video id="video" autoplay playsinline></video>
+      <button id="start-btn" disabled>Starting camera...</button>
+      <div id="countdown"></div>
+    </div>
+    <div class="layout-controls">
+      <button class="layout-btn active" data-layout="grid">Grid Layout</button>
+      <button class="layout-btn" data-layout="stack">Stack Layout</button>
+    </div>
+    <div class="layout-preview"></div>
+    <button id="download-btn">Download Photos</button>
   </div>
+  <footer>made by awani</footer>
   <script>
     const video = document.getElementById('video');
     const startBtn = document.getElementById('start-btn');
     const countdown = document.getElementById('countdown');
     const finalLayout = document.getElementById('final-layout');
     const downloadBtn = document.getElementById('download-btn');
+    const layoutControls = document.querySelector('.layout-controls');
+    const previewContainer = document.querySelector('.preview-container');
     let stream;
     let selfies = [];
-
+    let currentLayout = 'grid';
+  
+    document.querySelectorAll('.layout-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentLayout = btn.dataset.layout;
+        document.querySelectorAll('.layout-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        showPolaroidLayout(selfies);
+      });
+    });
+  
     async function startCamera() {
+      const constraints = {
+        video: {
+          facingMode: { ideal: "user" },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false
+      };
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
         video.srcObject = stream;
+        await video.play();
+        startBtn.disabled = false;
+        startBtn.textContent = 'Take Photos';
       } catch (err) {
-        countdown.textContent = 'Camera access denied or not available.';
-        startBtn.disabled = true;
+        alert('Camera access denied or not available. Please allow camera access and try again.');
       }
     }
-
+  
     function takeSelfie() {
+      if (!video.srcObject) return null;
       const canvas = document.createElement('canvas');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
@@ -69,88 +295,116 @@
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       return canvas.toDataURL('image/png');
     }
-
-    function showPolaroidLayout(images) {
-      finalLayout.innerHTML = '';
-      finalLayout.style.display = 'flex';
-      downloadBtn.style.display = 'inline-block';
-      let loaded = 0;
-      let polaroidImages = [];
-      for (let i = 0; i < images.length; i++) {
+  
+    function showPreview(selfie, index) {
+      const img = document.createElement('img');
+      img.src = selfie;
+      img.className = 'preview-image';
+      img.alt = `Preview ${index + 1}`;
+      previewContainer.appendChild(img);
+    }
+  
+    startBtn.addEventListener('click', async function() {
+      if (!video.srcObject) {
+        await startCamera();
+      } else {
+        await runPhotobooth();
+      }
+    });
+  
+    function showPreview(selfie) {
+      const previewStrip = document.querySelector('.preview-strip');
+      const polaroid = document.createElement('div');
+      polaroid.className = 'preview-polaroid';
+      
+      const img = document.createElement('img');
+      img.src = selfie;
+      img.alt = 'Preview';
+      
+      polaroid.appendChild(img);
+      previewStrip.appendChild(polaroid);
+    }
+  
+    function showPolaroidLayout(selfies) {
+      const layoutPreview = document.querySelector('.layout-preview');
+      layoutPreview.style.display = 'block';
+      layoutPreview.innerHTML = '';
+      
+      const container = document.createElement('div');
+      container.className = currentLayout === 'grid' ? 'polaroid-grid' : 'polaroid-stack';
+      
+      selfies.forEach((selfie, index) => {
         const polaroid = document.createElement('div');
         polaroid.className = 'polaroid';
-        const img = new window.Image();
-        img.src = images[i];
-        img.onload = function() {
-          loaded++;
-          if (loaded === images.length) {
-            // Save layout as a single image (canvas)
-            const layoutCanvas = document.createElement('canvas');
-            layoutCanvas.width = 360;
-            layoutCanvas.height = 160;
-            const ctx = layoutCanvas.getContext('2d');
-            ctx.fillStyle = '#232323';
-            ctx.fillRect(0, 0, layoutCanvas.width, layoutCanvas.height);
-            for (let j = 0; j < images.length; j++) {
-              ctx.save();
-              ctx.translate(20 + j * 115, 15);
-              ctx.rotate((Math.random()-0.5)*0.08);
-              ctx.fillStyle = '#222';
-              ctx.fillRect(-5, -5, 110+10, 110+30);
-              ctx.drawImage(polaroidImages[j], 0, 0, 110, 110);
-              ctx.restore();
-            }
-            ctx.strokeStyle = '#444';
-            ctx.lineWidth = 4;
-            ctx.strokeRect(2, 2, layoutCanvas.width-4, layoutCanvas.height-4);
-            // Remove any previous canvas
-            const prevCanvas = finalLayout.querySelector('canvas');
-            if (prevCanvas) finalLayout.removeChild(prevCanvas);
-            finalLayout.appendChild(layoutCanvas);
-            localStorage.setItem('photobooth_image', layoutCanvas.toDataURL('image/png'));
-          }
-        };
-        img.onerror = function() {
-          loaded++;
-        };
+        
+        const img = document.createElement('img');
+        img.src = selfie;
+        img.alt = `Photo ${index + 1}`;
+        
+        const caption = document.createElement('div');
+        caption.className = 'caption';
+        caption.textContent = `Photo ${index + 1}`;
+        
         polaroid.appendChild(img);
-        polaroidImages.push(img);
-        finalLayout.appendChild(polaroid);
-      }
+        polaroid.appendChild(caption);
+        container.appendChild(polaroid);
+      });
+      
+      layoutPreview.appendChild(container);
     }
-
+  
     async function runPhotobooth() {
       selfies = [];
-      startBtn.disabled = true;
       countdown.textContent = '';
+      startBtn.disabled = true;
+      document.querySelector('.preview-strip').innerHTML = '';
+      document.querySelector('.layout-preview').style.display = 'none';
+      layoutControls.style.display = 'none';
+      downloadBtn.style.display = 'none';
+      
       for (let i = 0; i < 3; i++) {
-        countdown.textContent = `Get ready! Taking selfie ${i+1} in 3...`;
-        await new Promise(r => setTimeout(r, 1000));
-        countdown.textContent = `Taking selfie ${i+1} in 2...`;
-        await new Promise(r => setTimeout(r, 1000));
-        countdown.textContent = `Taking selfie ${i+1} in 1...`;
-        await new Promise(r => setTimeout(r, 1000));
+        countdown.textContent = 'Get ready!';
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        for (let j = 3; j > 0; j--) {
+          countdown.textContent = j;
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        
         countdown.textContent = 'Smile!';
-        await new Promise(r => setTimeout(r, 300));
-        selfies.push(takeSelfie());
-        countdown.textContent = '';
+        const selfie = takeSelfie();
+        if (selfie) {
+          selfies.push(selfie);
+          showPreview(selfie);
+        }
+        
+        if (i < 2) {
+          countdown.textContent = 'Next photo in 2 seconds...';
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
       }
+      
+      countdown.textContent = 'Choose your layout!';
+      layoutControls.style.display = 'flex';
       showPolaroidLayout(selfies);
+      downloadBtn.style.display = 'block';
       startBtn.disabled = false;
-      countdown.textContent = 'All done!';
     }
-
-    startBtn.onclick = runPhotobooth;
-    downloadBtn.onclick = function() {
-      const dataUrl = localStorage.getItem('photobooth_image');
-      if (dataUrl) {
-        const a = document.createElement('a');
-        a.href = dataUrl;
-        a.download = 'photobooth.png';
-        a.click();
-      }
-    };
-    window.onload = startCamera;
+  
+    downloadBtn.addEventListener('click', function() {
+      const layoutPreview = document.querySelector('.layout-preview');
+      html2canvas(layoutPreview).then(canvas => {
+        const link = document.createElement('a');
+        link.download = 'photobooth.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      });
+    });
+  
+    startCamera();
   </script>
 </body>
 </html>
+<footer>
+  made by awani
+</footer>
