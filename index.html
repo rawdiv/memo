@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Selfie Photobooth</title>
+  <style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #181818; color: #f5f5f5; text-align: center; }
+    #photobooth { margin: 40px auto; background: #232323; padding: 24px; border-radius: 18px; box-shadow: 0 4px 32px rgba(0,0,0,0.4); width: 380px; }
+    #video { border-radius: 14px; border: 4px solid #444; background: #111; }
+    .polaroid {
+      background: #222;
+      padding: 12px 12px 36px 12px;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+      margin: 12px;
+      display: inline-block;
+      position: relative;
+      width: 110px;
+      height: 140px;
+      border: 2px solid #444;
+    }
+    .polaroid img { width: 110px; height: 110px; object-fit: cover; border-radius: 8px; filter: grayscale(0.2) contrast(1.1) drop-shadow(0 2px 8px #0008); }
+    .polaroid .caption { position: absolute; bottom: 10px; left: 0; width: 100%; font-size: 13px; color: #bbb; }
+    #final-layout { margin-top: 24px; display: flex; justify-content: center; gap: 16px; }
+    #download-btn { margin-top: 18px; padding: 12px 24px; font-size: 17px; border: none; border-radius: 10px; background: #111; color: #fff; cursor: pointer; box-shadow: 0 2px 8px #0006; transition: background 0.2s; }
+    #download-btn:disabled { background: #444; }
+    #download-btn:hover:not(:disabled) { background: #e60023; color: #fff; }
+    #countdown { font-size: 26px; color: #e60023; margin: 12px 0; font-weight: bold; }
+    h2 { font-family: 'Segoe UI', Arial, sans-serif; font-size: 2.1em; color: #fff; letter-spacing: 2px; margin-bottom: 18px; }
+    #start-btn { background: #e60023; color: #fff; border: none; border-radius: 8px; padding: 12px 28px; font-size: 18px; margin-top: 10px; cursor: pointer; box-shadow: 0 2px 8px #0006; transition: background 0.2s; }
+    #start-btn:disabled { background: #444; }
+    #start-btn:hover:not(:disabled) { background: #b8001c; }
+  </style>
+</head>
+<body>
+  <div id="photobooth">
+    <h2>Selfie Photobooth</h2>
+    <video id="video" width="320" height="240" autoplay></video>
+    <div id="countdown"></div>
+    <button id="start-btn">Start Photobooth</button>
+    <div id="final-layout" style="display:none;"></div>
+    <button id="download-btn" style="display:none;">Download Photobooth Image</button>
+  </div>
+  <script>
+    const video = document.getElementById('video');
+    const startBtn = document.getElementById('start-btn');
+    const countdown = document.getElementById('countdown');
+    const finalLayout = document.getElementById('final-layout');
+    const downloadBtn = document.getElementById('download-btn');
+    let stream;
+    let selfies = [];
+
+    async function startCamera() {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+      } catch (err) {
+        countdown.textContent = 'Camera access denied or not available.';
+        startBtn.disabled = true;
+      }
+    }
+
+    function takeSelfie() {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL('image/png');
+    }
+
+    function showPolaroidLayout(images) {
+      finalLayout.innerHTML = '';
+      finalLayout.style.display = 'flex';
+      downloadBtn.style.display = 'inline-block';
+      let loaded = 0;
+      let polaroidImages = [];
+      for (let i = 0; i < images.length; i++) {
+        const polaroid = document.createElement('div');
+        polaroid.className = 'polaroid';
+        const img = new window.Image();
+        img.src = images[i];
+        img.onload = function() {
+          loaded++;
+          if (loaded === images.length) {
+            // Save layout as a single image (canvas)
+            const layoutCanvas = document.createElement('canvas');
+            layoutCanvas.width = 360;
+            layoutCanvas.height = 160;
+            const ctx = layoutCanvas.getContext('2d');
+            ctx.fillStyle = '#232323';
+            ctx.fillRect(0, 0, layoutCanvas.width, layoutCanvas.height);
+            for (let j = 0; j < images.length; j++) {
+              ctx.save();
+              ctx.translate(20 + j * 115, 15);
+              ctx.rotate((Math.random()-0.5)*0.08);
+              ctx.fillStyle = '#222';
+              ctx.fillRect(-5, -5, 110+10, 110+30);
+              ctx.drawImage(polaroidImages[j], 0, 0, 110, 110);
+              ctx.restore();
+            }
+            ctx.strokeStyle = '#444';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(2, 2, layoutCanvas.width-4, layoutCanvas.height-4);
+            // Remove any previous canvas
+            const prevCanvas = finalLayout.querySelector('canvas');
+            if (prevCanvas) finalLayout.removeChild(prevCanvas);
+            finalLayout.appendChild(layoutCanvas);
+            localStorage.setItem('photobooth_image', layoutCanvas.toDataURL('image/png'));
+          }
+        };
+        img.onerror = function() {
+          loaded++;
+        };
+        polaroid.appendChild(img);
+        polaroidImages.push(img);
+        finalLayout.appendChild(polaroid);
+      }
+    }
+
+    async function runPhotobooth() {
+      selfies = [];
+      startBtn.disabled = true;
+      countdown.textContent = '';
+      for (let i = 0; i < 3; i++) {
+        countdown.textContent = `Get ready! Taking selfie ${i+1} in 3...`;
+        await new Promise(r => setTimeout(r, 1000));
+        countdown.textContent = `Taking selfie ${i+1} in 2...`;
+        await new Promise(r => setTimeout(r, 1000));
+        countdown.textContent = `Taking selfie ${i+1} in 1...`;
+        await new Promise(r => setTimeout(r, 1000));
+        countdown.textContent = 'Smile!';
+        await new Promise(r => setTimeout(r, 300));
+        selfies.push(takeSelfie());
+        countdown.textContent = '';
+      }
+      showPolaroidLayout(selfies);
+      startBtn.disabled = false;
+      countdown.textContent = 'All done!';
+    }
+
+    startBtn.onclick = runPhotobooth;
+    downloadBtn.onclick = function() {
+      const dataUrl = localStorage.getItem('photobooth_image');
+      if (dataUrl) {
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = 'photobooth.png';
+        a.click();
+      }
+    };
+    window.onload = startCamera;
+  </script>
+</body>
+</html>
